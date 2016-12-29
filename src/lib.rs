@@ -10,6 +10,8 @@ extern crate byteorder;
 extern crate rustc_serialize;
 
 use byteorder::{LittleEndian, ReadBytesExt};
+use std::error;
+use std::fmt;
 use std::fs::File;
 use std::io::{self, BufReader, ErrorKind, Read, Seek, SeekFrom};
 use std::path::Path;
@@ -23,6 +25,35 @@ pub enum Error {
     InvalidShotNumber(u16),
     /// Wrapper around `std::io::Error`.
     Io(io::Error),
+}
+
+impl error::Error for Error {
+    fn description(&self) -> &str {
+        match *self {
+            Error::InvalidOffset { .. } => "invalid shot offset",
+            Error::InvalidShotNumber(_) => "invalid shot number",
+            Error::Io(ref err) => err.description(),
+        }
+    }
+
+    fn cause(&self) -> Option<&error::Error> {
+        match *self {
+            Error::Io(ref err) => Some(err),
+            _ => None,
+        }
+    }
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            Error::InvalidOffset { shot_number, offset } => {
+                write!(f, "invalid offset {} for shot {}", offset, shot_number)
+            }
+            Error::InvalidShotNumber(number) => write!(f, "invalid shot number: {}", number),
+            Error::Io(ref err) => write!(f, "IO error: {}", err),
+        }
+    }
 }
 
 impl From<io::Error> for Error {
