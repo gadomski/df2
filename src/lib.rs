@@ -98,6 +98,8 @@ impl<R: Read> Reader<R> {
 impl<R: Read + Seek> Reader<R> {
     /// Seeks to the shot with the given number.
     ///
+    /// Seeking to the n + 1 shot is not an error, but any shots after that *are* errors.
+    ///
     /// # Examples
     ///
     /// ```
@@ -106,7 +108,8 @@ impl<R: Read + Seek> Reader<R> {
     /// assert!(reader.seek(0).is_err());
     /// assert!(reader.seek(1).is_ok());
     /// assert!(reader.seek(2).is_ok());
-    /// assert!(reader.seek(3).is_err());
+    /// assert!(reader.seek(3).is_ok());
+    /// assert!(reader.seek(4).is_err());
     /// ```
     pub fn seek(&mut self, number: u16) -> Result<()> {
         if number == 0 {
@@ -114,10 +117,11 @@ impl<R: Read + Seek> Reader<R> {
         }
         // TODO optimize by saving locations?
         self.reader.seek(SeekFrom::Start(2))?;
-        let mut position: u64 = 4;
+        let mut position: u64 = 2;
         let mut current = 1;
         while current < number {
             let offset = self.reader.read_u16::<LittleEndian>()? * 2 + 2;
+            position += 2;
             let new_position = self.reader.seek(SeekFrom::Current(offset as i64))?;
             if new_position != position + offset as u64 {
                 return Err(Error::InvalidShotNumber(number));
@@ -240,13 +244,20 @@ mod tests {
     }
 
     #[test]
-    fn reader_seek() {
+    fn reader_seek_identical() {
         let shot_by_iter =
             Reader::from_path("data/two-shots.df2").unwrap().skip(1).next().unwrap().unwrap();
         let mut reader = Reader::from_path("data/two-shots.df2").unwrap();
         reader.seek(2).unwrap();
         let shot_by_seek = reader.read_one().unwrap().unwrap();
         assert_eq!(shot_by_iter, shot_by_seek);
+    }
+
+    #[test]
+    fn reader_seek_skip_two() {
+        let mut reader = Reader::from_path("data/four-shots.df2").unwrap();
+        reader.seek(3).unwrap();
+        assert_eq!(2, reader.collect::<Result<Vec<Shot>>>().unwrap().len());
     }
 
     #[test]
