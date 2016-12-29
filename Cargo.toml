@@ -7,6 +7,10 @@ readme = "README.md"
 keywords = ["optech", "df2", "lidar", "waveform"]
 license = "MIT"
 
+[[bin]]
+name = "df2"
+doc = false
+
 [dependencies]
 byteorder = "0.5"
 docopt = "0.6"
