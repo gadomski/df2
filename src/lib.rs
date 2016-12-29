@@ -3,7 +3,7 @@
 extern crate byteorder;
 
 use std::fs::File;
-use std::io::{self, BufReader, Read};
+use std::io::{self, BufReader, Read, ErrorKind};
 use std::path::Path;
 
 use byteorder::{LittleEndian, ReadBytesExt};
@@ -55,7 +55,15 @@ impl<R: Read> Reader<R> {
     /// let shot = reader.read_one().unwrap().unwrap();
     /// ```
     pub fn read_one(&mut self) -> Result<Option<Shot>> {
-        let number = self.reader.read_u16::<LittleEndian>()?;
+        let number = match self.reader.read_u16::<LittleEndian>() {
+            Ok(number) => number,
+            Err(err) => {
+                match err.kind() {
+                    ErrorKind::UnexpectedEof => return Ok(None),
+                    _ => return Err(err.into()),
+                }
+            }
+        };
         Ok(Some(Shot { number: number }))
     }
 }
@@ -63,7 +71,15 @@ impl<R: Read> Reader<R> {
 impl<R: Read> Iterator for Reader<R> {
     type Item = Result<Shot>;
     fn next(&mut self) -> Option<Result<Shot>> {
-        unimplemented!()
+        match self.read_one() {
+            Ok(option) => {
+                match option {
+                    Some(shot) => Some(Ok(shot)),
+                    None => None,
+                }
+            }
+            Err(err) => Some(Err(err)),
+        }
     }
 }
 
