@@ -1,9 +1,10 @@
 /// Df2 files are waveform files from an Optech LiDAR system.
 
 extern crate byteorder;
+extern crate rustc_serialize;
 
 use std::fs::File;
-use std::io::{self, BufReader, Read, ErrorKind};
+use std::io::{self, Seek, SeekFrom, BufReader, Read, ErrorKind};
 use std::path::Path;
 
 use byteorder::{LittleEndian, ReadBytesExt};
@@ -13,6 +14,8 @@ use byteorder::{LittleEndian, ReadBytesExt};
 pub enum Error {
     /// Shot has an invalid offset.
     InvalidOffset { shot_number: u16, offset: u16 },
+    /// The shot number is invalid.
+    InvalidShotNumber(u16),
     /// Wrapper around `std::io::Error`.
     Io(io::Error),
 }
@@ -92,6 +95,41 @@ impl<R: Read> Reader<R> {
     }
 }
 
+impl<R: Read + Seek> Reader<R> {
+    /// Seeks to the shot with the given number.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use df2::Reader;
+    /// let mut reader = Reader::from_path("data/two-shots.df2").unwrap();
+    /// assert!(reader.seek(0).is_err());
+    /// assert!(reader.seek(1).is_ok());
+    /// assert!(reader.seek(2).is_ok());
+    /// assert!(reader.seek(3).is_err());
+    /// ```
+    pub fn seek(&mut self, number: u16) -> Result<()> {
+        if number == 0 {
+            return Err(Error::InvalidShotNumber(number));
+        }
+        // TODO optimize by saving locations?
+        self.reader.seek(SeekFrom::Start(2))?;
+        let mut position: u64 = 4;
+        let mut current = 1;
+        while current < number {
+            let offset = self.reader.read_u16::<LittleEndian>()? * 2 + 2;
+            let new_position = self.reader.seek(SeekFrom::Current(offset as i64))?;
+            if new_position != position + offset as u64 {
+                return Err(Error::InvalidShotNumber(number));
+            }
+            position += offset as u64;
+            current += 1;
+        }
+        self.reader.seek(SeekFrom::Current(-2))?;
+        Ok(())
+    }
+}
+
 impl<R: Read> Iterator for Reader<R> {
     type Item = Result<Shot>;
     fn next(&mut self) -> Option<Result<Shot>> {
@@ -108,6 +146,7 @@ impl<R: Read> Iterator for Reader<R> {
 }
 
 /// A laser shot.
+#[derive(Debug, PartialEq, RustcEncodable)]
 pub struct Shot {
     /// The shot number (one-indexed).
     pub number: u16,
@@ -118,6 +157,7 @@ pub struct Shot {
 }
 
 /// A waveform segment.
+#[derive(Debug, PartialEq, RustcEncodable)]
 pub struct Segment {
     /// The waveform samples.
     pub data: Vec<u16>,
@@ -197,6 +237,16 @@ mod tests {
     fn reader_iterator() {
         let shots: Vec<_> = Reader::from_path("data/one-shot.df2").unwrap().collect();
         assert_eq!(1, shots.len());
+    }
+
+    #[test]
+    fn reader_seek() {
+        let shot_by_iter =
+            Reader::from_path("data/two-shots.df2").unwrap().skip(1).next().unwrap().unwrap();
+        let mut reader = Reader::from_path("data/two-shots.df2").unwrap();
+        reader.seek(2).unwrap();
+        let shot_by_seek = reader.read_one().unwrap().unwrap();
+        assert_eq!(shot_by_iter, shot_by_seek);
     }
 
     #[test]
