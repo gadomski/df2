@@ -218,6 +218,21 @@ impl Segment {
     pub fn len(&self) -> u16 {
         self.data.len() as u16 * 2 + 6
     }
+
+    /// Returns true if this segment has no data.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use df2::Segment;
+    /// let segment = Segment { data: Vec::new(), time_interval: 0 };
+    /// assert!(segment.is_empty());
+    /// let segment = Segment::from_path("data/one-segment.bin").unwrap();
+    /// assert!(!segment.is_empty());
+    /// ```
+    pub fn is_empty(&self) -> bool {
+        self.data.is_empty()
+    }
 }
 
 #[cfg(test)]
