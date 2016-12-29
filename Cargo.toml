@@ -2,6 +2,10 @@
 name = "df2"
 version = "0.1.0"
 authors = ["Pete Gadomski <pete.gadomski@gmail.com>"]
+description = "Reads Optech df2 waveform data."
+readme = "README.md"
+keywords = ["optech", "df2", "lidar", "waveform"]
+license = "MIT"
 
 [dependencies]
 byteorder = "0.5"
