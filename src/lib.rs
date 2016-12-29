@@ -3,11 +3,10 @@
 extern crate byteorder;
 extern crate rustc_serialize;
 
-use std::fs::File;
-use std::io::{self, Seek, SeekFrom, BufReader, Read, ErrorKind};
-use std::path::Path;
-
 use byteorder::{LittleEndian, ReadBytesExt};
+use std::fs::File;
+use std::io::{self, BufReader, ErrorKind, Read, Seek, SeekFrom};
+use std::path::Path;
 
 /// Our custom error enum.
 #[derive(Debug)]

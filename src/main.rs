@@ -2,11 +2,10 @@ extern crate df2;
 extern crate docopt;
 extern crate rustc_serialize;
 
-use std::path::Path;
-
 use df2::{Reader, Shot};
 use docopt::Docopt;
 use rustc_serialize::json;
+use std::path::Path;
 
 const USAGE: &'static str = "
 Query Optech df2 files.
